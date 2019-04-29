@@ -16,7 +16,12 @@ schemes:
 tags:
   - name: BlockInfo
     description: Block APIs, such as query coin flow,proposal,validatorset
-
+  - name: Block
+    description: query blocks
+  - name: Governance/Proposal
+    description: query proposal
+  - name: stake
+    description:
 paths:
   /api/block/{height}:
     get:
@@ -28,8 +33,9 @@ paths:
           name: height
           description: Block height
           required: true
-          type: number
-          x-example: 1
+          type: integer
+          format: int64
+          default: 1
       responses:
         200:
           description: The block info at a specific height
@@ -39,7 +45,6 @@ paths:
           description: generic error response
           schema:
             $ref: "#/definitions/error"
-
   /api/stake/validatorset:
     get:
       tags:
@@ -48,8 +53,9 @@ paths:
         - name: height
           in: query
           description: Block height
-          type: number
-          x-example: 1
+          type: integer
+          format: int64
+          default: 1
         - name: page
           in: query
           type: integer
@@ -79,8 +85,9 @@ paths:
         - name: height
           in: query
           description: Block height
-          type: number
-          x-example: 1
+          type: integer
+          format: int64
+          default: 1
         - name: page
           in: query
           type: integer
@@ -102,8 +109,181 @@ paths:
           description: generic error response
           schema:
             $ref: "#/definitions/error"
+  /api/blocks:
+    get:
+      tags:
+        - Block
+      parameters:
+        - name: page
+          in: query
+          type: integer
+          format: int
+          default: 1
 
+          required: false
+        - name: size
+          in: query
+          type: integer
+          format: int
+          default: 100
+
+          required: false
+      responses:
+        200:
+          description: query recent blocks
+          schema:
+            $ref: "#/definitions/Blocks"
+        default:
+          description: generic error response
+          schema:
+            $ref: "#/definitions/error"
+  /api/blocks/recent:
+    get:
+      summary: query the recent blocks
+      tags:
+        - Block
+      responses:
+        200:
+          description: 
+          schema:
+          type: array
+          items:
+            $ref: "#/definitions/BlockInfoVo"
+        default:
+          description: generic error response
+          schema:
+            $ref: "#/definitions/error"
+  /api/proposal/{pid}:
+    get:
+      summary: query a proposal
+      tags:
+        - Governance/Proposal
+      parameters:
+        - in: path
+          name: pid
+          description: query a proposal by id
+          required: true
+          type: integer
+          format: int
+      responses:
+        200:
+          description:
+          schema:
+            $ref: "#/definitions/ProposalInfoVo"
+        default:
+          description: generic error response
+          schema:
+            $ref: "#/definitions/error"
+  /api/proposals/{page}/{size}:
+    get:
+      tags:
+        - Governance/Proposal
+      parameters:
+        - in: path
+          name: page
+          type: integer
+          format: int
+          default: 1
+        - in: path
+          name: size
+          type: integer
+          format: int
+          default: 20
+      responses:
+        200:
+          schema:
+            $ref: "#/definitions/GovProposals"
+        default:
+          description: generic error response
+          schema:
+            $ref: "#/definitions/error"
+  /api/stake/validators:
+    get:
+      tags:
+      - stake
+      parameters:
+        - name: page
+          in: query
+          type: integer
+          format: int64
+          default: 1
+        - name: size
+          in: query
+          type: integer
+          format: int64
+          default: 100
+        - name: type
+          in: query
+          type: string
+        - name: origin
+          in: query
+          type: string
+      responses:
+        200:
+          description:
+          schemas:
+        default:
+          description: generic error response
+          schema:
+            $ref: "#/definitions/error"
 definitions:
+  Blocks:
+    type: object
+    required:
+      - Count
+      - Data
+    properties:
+      Count:
+        type: integer
+        format: int
+      Data:
+        type: array
+        items:
+          $ref: "#/definitions/BlockInfoVo"
+  BlockInfoVo:
+    type: object
+    required:
+      - height
+      - hash
+      - time
+      - num_txs
+      - validators
+      - last_commit
+      - total_txs
+      - last_block_hash
+    properties:
+      height:
+        type: integer
+        format: int64
+      hash:
+        type: string
+      time:
+        type: string
+      num_txs:
+        type: integer
+        format: int64
+      validators:
+        $ref: "#/definitions/ValInfo"
+      last_commit:
+        type: array
+        items:
+          type: string
+      total_txs:
+        type: integer
+        format: int64
+      last_block_hash:
+        type: string
+  ValInfo:
+    type: object
+    required:
+      - address
+      - voting_power
+    properties:
+      address:
+        type: string
+      voting_power:
+        type: integer
+        format: int64
   Block:
     type: object
     properties:
@@ -116,7 +296,7 @@ definitions:
       proposals:
         type: array
         items:
-          $ref: "#/definitions/Proposal"
+          $ref: "#/definitions/ProposalInfoVo"
   BlockInfo:
     type: object
     properties:
@@ -131,7 +311,7 @@ definitions:
       propopser:
         type: string
       reward:
-        $ref: "#/definitions/Coin"
+        $ref: "#/definitions/Coins"
       last_block:
         type: integer
         format: int64
@@ -143,9 +323,49 @@ definitions:
         type: string
       latest_height:
         type: string
-
-  Proposal:
+  ProposalInfoVo:
+     type: object
+     required:
+       - proposal
+       - votes
+       - result
+     properties:
+       proposal:
+         $ref: "#/definitions/GovProposal"
+       votes:
+         type: array
+         items:
+          $ref: "#/definitions/Vote"
+       result:
+          $ref: "#/definitions/VoteResult"
+  GovProposals:
     type: object
+    required:
+      - Count
+      - Data
+    properties:
+      Count:
+       type: integer
+       format: int
+      Data:
+        type: array
+        items:
+          $ref: "#/definitions/GovProposal"
+  GovProposal:
+    type: object
+    required:
+      - title
+      - proposal_id
+      - type
+      - status
+      - proposer
+      - submit_time
+      - description
+      - deposit_end_time
+      - voting_end_time
+      - tx_hash
+      - total_deposit
+      - voting_start_time
     properties:
       title:
         type: string
@@ -160,22 +380,74 @@ definitions:
         type: string
       submit_time:
         type: string
+      description:
+        type: string
+      deposit_end_time:
+        type: string
+      voting_end_time:
+        type: string
+      tx_hash:
+        type: string
+      parameters:
+        type: array
+        items:
+          $ref: "#/definitions/Param"
       voting_start_time:
         type: string
       total_deposit:
         $ref: "#/definitions/Coins"
-      votes_validators:
-        $ref: "#/definitions/VotesValidators"
-
-  VotesValidators:
+      version:
+        type: integer
+        format: uint64
+      software:
+        type: string
+      switch_height:
+        type: integer
+        format: uint64
+      threshold:
+        type: string
+  Param:
     type: object
     properties:
-      vote_len:
-        type: integer
-        format: int
-      validator_len:
-        type: integer
-        format: int
+      subspace:
+        type: string
+      key:
+        type: string
+      value:
+        type: string
+  Vote:
+    type: object
+    required:
+      - voter
+      - option
+      - time
+    properties:
+      voter:
+        type: string
+      option:
+        type: string
+      time:
+        type: string
+  VoteResult:
+     type: object
+     required:
+       - Yes
+       - No
+       - NoWithVeto
+       - Abstain
+     properties:
+       Yes:
+         type: integer
+         format: int
+       No:
+         type: integer
+         format: int
+       NoWithVeto:
+         type: integer
+         format: int
+       Abstain:
+         type: integer
+         fromat: int
 
   TokenFlow:
     type: object
